@@ -14,7 +14,7 @@ hasversiontag="false"
 scope="patch"
 displayonly="false"
 forcetag="false"
-push="true"
+autopush="true"
 prefix=""
 forcedversion=
 versionname=
@@ -83,7 +83,7 @@ while getopts "v:s:oflp:" opt; do
       forcetag="true"
       ;;
     l)
-      push="false"
+      autopush="false"
       ;;
     p)
       prefix="$OPTARG"
@@ -419,7 +419,7 @@ $__commitlist"
 
       # If we have a remote, and if the -l flag is not set, we push there
       local __remote=$(git remote)
-      if [ -n $__remote ] && [ "$push" == "true" ]; then
+      if [ -n $__remote ] && [ "$autopush" == "true" ]; then
         git push $__remote $__version > /dev/null
         if [ $? -eq 0 ]; then
           echo "$__version"
