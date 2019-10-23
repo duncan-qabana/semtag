@@ -1,4 +1,5 @@
 # Semtag
+
 Semantic Tagging Script for Git
 
 [Version: v0.1.0]
@@ -9,11 +10,11 @@ Notes: *This script is inspired by the [Nebula Release Plugin](https://github.co
 
 This is a script to help out version bumping on a project following the [Semantic Versioning](http://semver.org/) specification. It uses Git Tags to keep track the versions and the commit log between them, so no extra files are needed. It can be combined with release scripts, git hooks, etc, to have a consistent versioning.
 
-### Why Bash? (and requirements)
+## Why Bash? (and requirements)
 
 Portability, mostly. You can use the script in any project that uses Git as a version control system. The only requirement is Git.
 
-### Why not use the Nebula-release plugin?
+## Why not use the Nebula-release plugin?
 
 Nebula Release is for releasing and publishing components and tries to automate the whole process from tagging to publishing. Th goal of the `semtag` script is to only tag release versions, leaving the release process up to the developer.
 
@@ -29,7 +30,7 @@ Starts from version `0.0.0`, so the first time you initialize a version, it will
 
 Use the script as follows:
 
-```
+```bash
 $ semtag <commdand> <options>
 ```
 
@@ -55,7 +56,11 @@ If you don't want to tag, but just display which would be the next bumped versio
 
 For specifying the scope you want to bump the version, use the `-s <scope>` option. Possible scopes are `major`, `minor` and `patch`. There is also `auto` which will choose between `minor` and `patch` depending on the percentage of lines changed. Usually it should be the developers decisions which scope to use, since the percentage of lines is not a great criteria, but this option is to help giving a more meaningful versioning when using in automatic scripts.
 
-If you want to manually set a version, use the `-v <version>` option. Version must comply the semantic versioning specification (`v<major>.<minor>.<patch>`), and must be higher than the latest version. Works with any versioning command.
+If you want to manually set a version, use the `-v <version>` option. Version must comply the semantic versioning specification (`<major>.<minor>.<patch>`), and must be higher than the latest version. Works with any versioning command.
+
+You can also set a prefix. Use `-p <prefix>` to set a prefix.
+
+If you do not want to automaticly push your tag to the remote, use `-l`. You will have to push your tag later on manually.
 
 ### Usage Examples
 
@@ -65,7 +70,7 @@ See the `release` script as an example. The script gets the next version to tag,
 
 For setting up your project's version, in your `build.gradle` file, add the following:
 
-```
+```text
 version=getVersionTag()
 
 def getVersionTag() {
@@ -81,13 +86,13 @@ def getVersionTag() {
 
 This way, the project's version every time you make a build, will be aligned with the tagged version. On your CI script, you can tag the release version before deploying, or alternatively, before publishing to a central repository (such as Artifactory), you can create a Gradle task tagging the release version:
 
-```
+```text
 def tagFinalVersion() {
   exec {
     commandLine "$rootProject.projectDir/semtag", "final", "-s minor"
     standardOutput = hashStdOut
   }
-  
+
   doLast {
     project.version=getVersionTag()
   }
@@ -102,7 +107,7 @@ Or create your own task for tagging and releasing. The goal of this script is to
 
 Semtag tries to guess which is the following version by using the current final version as a reference for bumping. For example:
 
-```
+```text
 $ semtag get
 Current final version: v1.0.0
 Last tagged version:   v1.0.0
@@ -114,7 +119,7 @@ Last tagged version:   v1.1.0-rc.1
 
 Above it used the `v1.0.0` version for bumping a minor release candidate. If we try to increase a patch:
 
-```
+```bash
 $ semtag candidate -s patch
 $ semtag get
 Current final version: v1.0.0
@@ -123,7 +128,7 @@ Last tagged version:   v1.1.0-rc.2
 
 Again, it used the `v1.0.0` version as a reference to increase the patch version (so it should be bumped to `v1.0.1-rc.1`), but since the last tagged version is higher, it bumped the release candidate number instead. If we release a beta version:
 
-```
+```bash
 $ semtag beta -s patch
 $ semtag get
 Current final version: v1.0.0
