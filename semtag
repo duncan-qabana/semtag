@@ -7,13 +7,14 @@ SEMVER_REGEX="^v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(\-[0-9A-Za-z-
 IDENTIFIER_REGEX="^\-([0-9A-Za-z-]+)\.([0-9A-Za-z-]+)*$"
 
 # Global variables
-FIRST_VERSION="v0.0.0"
+FIRST_VERSION="0.0.0"
 finalversion=$FIRST_VERSION
 lastversion=$FIRST_VERSION
 hasversiontag="false"
 scope="patch"
 displayonly="false"
 forcetag="false"
+push="true"
 prefix=""
 forcedversion=
 versionname=
@@ -24,7 +25,7 @@ Usage:
   $PROG
   $PROG getlast
   $PROG getfinal
-  $PROG (final|alpha|beta|candidate) [-s <scope> (major|minor|patch|auto) | -o]
+  $PROG (final|alpha|beta|candidate) [-s <scope> (major|minor|patch|auto) | -o | -f | -p <prefix> | -l ]
   $PROG --help
   $PROG --version
 Options:
@@ -43,6 +44,7 @@ Options:
   -o         Output the version only, shows the bumped version, but doesn't tag.
   -f         Forces to tag, even if there are unstaged or uncommited changes.
   -p         Change the prefix used in the version tag (defaults to nothing)
+  -l         Only create the tag locally, do not push the tag to the remote.
 Commands:
   --help     Print this help message.
   --version  Prints the program's version.
@@ -66,7 +68,7 @@ ACTION="$1"
 shift
 
 # We get the parameters
-while getopts "v:s:ofp:" opt; do
+while getopts "v:s:oflp:" opt; do
   case $opt in
     v)
       forcedversion="$OPTARG"
@@ -79,6 +81,9 @@ while getopts "v:s:ofp:" opt; do
       ;;
     f)
       forcetag="true"
+      ;;
+    l)
+      push="false"
       ;;
     p)
       prefix="$OPTARG"
@@ -412,9 +417,9 @@ $__commitlist"
 
       git tag -a $__version -m "$__message"
 
-      # If we have a remote, we push there
+      # If we have a remote, and if the -l flag is not set, we push there
       local __remote=$(git remote)
-      if [[ -n $__remote ]]; then
+      if [ -n $__remote ] && [ "$push" == "true" ]; then
         git push $__remote $__version > /dev/null
         if [ $? -eq 0 ]; then
           echo "$__version"
