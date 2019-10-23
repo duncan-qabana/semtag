@@ -14,7 +14,7 @@ hasversiontag="false"
 scope="patch"
 displayonly="false"
 forcetag="false"
-prefix="v"
+prefix=""
 forcedversion=
 versionname=
 identifier=
@@ -42,7 +42,7 @@ Options:
                in the format X.Y.Z where X, Y and Z are positive integers.
   -o         Output the version only, shows the bumped version, but doesn't tag.
   -f         Forces to tag, even if there are unstaged or uncommited changes.
-  -p         Change the prefix used in the version tag (defaults to 'v')
+  -p         Change the prefix used in the version tag (defaults to nothing)
 Commands:
   --help     Print this help message.
   --version  Prints the program's version.
