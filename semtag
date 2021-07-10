@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 
 PROG=semtag
-PROG_VERSION="v0.1.0"
+PROG_VERSION="v0.1.1"
 
 SEMVER_REGEX="^v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(\-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$"
-IDENTIFIER_REGEX="^\-([0-9A-Za-z-]+)\.([0-9A-Za-z-]+)*$"
+IDENTIFIER_REGEX="^\-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*$"
+NUMERIC_REGEX='^[0-9]+$'
 
 # Global variables
 FIRST_VERSION="0.0.0"
@@ -14,8 +15,7 @@ hasversiontag="false"
 scope="patch"
 displayonly="false"
 forcetag="false"
-autopush="true"
-prefix=""
+prefix="v"
 forcedversion=
 versionname=
 identifier=
@@ -43,7 +43,7 @@ Options:
                in the format X.Y.Z where X, Y and Z are positive integers.
   -o         Output the version only, shows the bumped version, but doesn't tag.
   -f         Forces to tag, even if there are unstaged or uncommited changes.
-  -p         Change the prefix used in the version tag (defaults to nothing)
+  -p         Use a plain version, ie. do not prefix with 'v'.
   -l         Only create the tag locally, do not push the tag to the remote.
 Commands:
   --help     Print this help message.
@@ -54,7 +54,7 @@ Commands:
   getcurrent Returns the current version, based on the latest one, if there are uncommited or
                unstaged changes, they will be reflected in the version, adding the number of
                pending commits, current branch and commit hash.
-  final      Tags the current build as a final version, this only can be done on the master branch.
+  final      Tags the current build as a final version, this only can be done on the default branch.
   candidate  Tags the current build as a release candidate, the tag will contain all
                the commits from the last final version.
   alpha      Tags the current build as an alpha version, the tag will contain all
@@ -68,7 +68,7 @@ ACTION="$1"
 shift
 
 # We get the parameters
-while getopts "v:s:oflp:" opt; do
+while getopts "v:s:ofp" opt; do
   case $opt in
     v)
       forcedversion="$OPTARG"
@@ -82,13 +82,11 @@ while getopts "v:s:oflp:" opt; do
     f)
       forcetag="true"
       ;;
+    p)
+      prefix=""
+      ;;
     l)
       autopush="false"
-      ;;
-    p)
-      prefix="$OPTARG"
-      SEMVER_REGEX="^${prefix}?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(\-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$"
-      FIRST_VERSION="${prefix}0.0.0"
       ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
@@ -100,6 +98,25 @@ while getopts "v:s:oflp:" opt; do
       ;;
   esac
 done
+
+# Try to programmatically fetch the default branch. Go by the first remote HEAD found, otherwise default to `master`.
+# $1 The variable to store the result
+function get_default_branch {
+  local __result=$1
+
+  local __remotes=$(git remote)
+  if [[ -n $__remotes ]]; then
+    for __remote in $__remotes; do
+      local __default_branch_ref=$(git symbolic-ref --quiet refs/remotes/${__remote}/HEAD || true)
+      local __default_branch=${__default_branch_ref#refs/remotes/${__remote}/}
+      if [[ -n ${__default_branch} ]]; then
+        break
+      fi
+    done
+  fi
+
+  eval "${__result}=${__default_branch:-master}"
+}
 
 # Gets a string with the version and returns an array of maximum size of 5 with all the parts of the sematinc version
 # $1 The string containing the version in semantic format
@@ -156,23 +173,45 @@ function compare_versions {
   # Identifiers should compare with the ASCII order.
   local __identifierfirst=${__first[3]}
   local __identifiersecond=${__second[3]}
-  if [[ -n "$__identifierfirst" ]] && [[ -n "$__identifiersecond" ]]; then
-    if [[ "$__identifierfirst" > "$__identifiersecond" ]]; then
-      eval "$lv=1"
-      return 0
-    elif [[ "$__identifierfirst" < "$__identifiersecond" ]]; then
-      eval "$lv=-1"
-      return 0
-    fi
-  elif [[ -z "$__identifierfirst" ]] && [[ -n "$__identifiersecond" ]]; then
-    eval "$lv=1"
-    return 0
-  elif [[ -n "$__identifierfirst" ]] && [[ -z "$__identifiersecond" ]]; then
-    eval "$lv=-1"
-    return 0
-  fi
+  compare_identifiers "${__first[3]}" "${__second[3]}" compareresult
+  eval "$lv=$compareresult"
+}
 
-  eval "$lv=0"
+
+# Returns the number comparison
+# $1 The first number to compare
+# $2 The second number to compare
+# $3 The variable where to store the result
+function compare_numeric {
+  local __first=$1
+  local __second=$2
+  local __result=$3
+
+  if (( "$__first" < "$__second" )) ; then
+    eval "$__result=-1"
+  elif (( "$__first" > "$__second" )) ; then
+    eval "$__result=1"
+  else
+    eval "$__result=0"
+  fi
+}
+
+# Returns the alpanumeric comparison
+# $1 The first alpanumeric to compare
+# $2 The second alpanumeric to compare
+# $3 The variable where to store the result
+function compare_alphanumeric {
+  local __first=$1
+  local __second=$2
+  local __result=$3
+
+  if [[ "$__first" < "$__second" ]] ; then
+    eval "$__result=-1"
+  elif [[ "$__first" > "$__second" ]] ; then
+    eval "$__result=1"
+  else
+    eval "$__result=0"
+  fi
 }
 
 # Returns the last version of two
@@ -184,6 +223,7 @@ function get_latest_of_two {
   local __second=$2
   local __result
   local __latest=$3
+
   compare_versions $__first $__second __result
   case $__result in
     0)
@@ -198,6 +238,69 @@ function get_latest_of_two {
   esac
 }
 
+# Returns comparison of two identifier parts
+# $1 The first part to compare
+# $2 The second part to compare
+# $3 The variable where to store the compare result
+function compare_identifier_part {
+  local __first=$1
+  local __second=$2
+  local __result=$3
+  local compareresult
+
+  if [[ "$__first" =~ $NUMERIC_REGEX ]] && [[ "$__second" =~ $NUMERIC_REGEX ]] ; then
+    compare_numeric "$__first" "$__second" compareresult
+    eval "$__result=$compareresult"
+    return 0
+  fi
+
+
+  compare_alphanumeric "$__first" "$__second" compareresult
+  eval "$__result=$compareresult"
+}
+
+# Returns comparison of two identifiers
+# $1 The first identifier to compare
+# $2 The second identifier to compare
+# $3 The variable where to store the compare result
+function compare_identifiers {
+  local __first=$1
+  local __second=$2
+  local __result=$3
+  local partresult
+  local arraylengths
+  if [[ -n "$__first" ]] && [[ -n "$__second" ]]; then
+    explode_identifier "${__first}" explodedidentifierfirst
+    explode_identifier "${__second}" explodedidentifiersecond
+
+    firstsize=${#explodedidentifierfirst[@]}
+    secondsize=${#explodedidentifiersecond[@]}
+    minlength=$(( $firstsize<$secondsize ? $firstsize : $secondsize ))
+    for (( i = 0 ; i < $minlength ; i++ )); do
+      compare_identifier_part "${explodedidentifierfirst[$i]}" "${explodedidentifiersecond[$i]}" partresult
+      case $partresult in
+        0)
+          ;;
+        *)
+          eval "$__result=$partresult"
+          return 0
+          ;;
+      esac
+    done
+    compare_numeric $firstsize $secondsize arraylengths
+    eval "$__result=$arraylengths"
+    return 0
+  elif [[ -z "$__first" ]] && [[ -n "$__second" ]]; then
+    eval "$__result=1"
+    return 0
+  elif [[ -n "$__first" ]] && [[ -z "$__second" ]]; then
+    eval "$__result=-1"
+    return 0
+  fi
+
+  eval "$__result=0"
+}
+
 # Assigns a 2 size array with the identifier, having the identifier at pos 0, and the number in pos 1
 # $1 The identifier in the format -id.#
 # $2 The vferiable where to store the 2 size array
@@ -205,12 +308,8 @@ function explode_identifier {
   local __identifier=$1
   local __result=$2
   if [[ $__identifier =~ $IDENTIFIER_REGEX ]] ; then
-    local __id=${BASH_REMATCH[1]}
-    local __number=${BASH_REMATCH[2]}
-    if [[ -z "$__number" ]]; then
-      __number=1
-    fi
-    eval "$__result=(\"$__id\" \"$__number\")"
+    IFS='-.' read -ra identifierparts <<< $__identifier
+    eval "$__result=( ${identifierparts[@]} )"
   else
     eval "$__result="
   fi
@@ -543,7 +642,8 @@ function get_current {
   else
     local __buildinfo="$(git rev-parse --short HEAD)"
     local __currentbranch="$(git rev-parse --abbrev-ref HEAD)"
-    if [ "$__currentbranch" != "master" ]; then
+    get_default_branch default_branch
+    if [ "$__currentbranch" != "$default_branch" ]; then
       __buildinfo="$__currentbranch.$__buildinfo"
     fi
 
@@ -592,10 +692,11 @@ case $ACTION in
     ;;
   final)
     init
-    diff=$(git diff master | cat)
+    get_default_branch default_branch
+    diff=$(git diff $default_branch | cat)
     if [ "$forcetag" == "false" ]; then
       if [ -n "$diff" ]; then
-        echo "ERROR: Branch must be updated with master for final versions"
+        echo "ERROR: Branch must be updated with $default_branch for final versions"
         exit 1
       fi
     fi

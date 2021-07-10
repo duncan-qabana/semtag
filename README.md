@@ -2,7 +2,7 @@
 
 Semantic Tagging Script for Git
 
-[Version: v0.1.0]
+[Version: v0.1.1]
 
 Notes: *This script is inspired by the [Nebula Release Plugin](https://github.com/nebula-plugins/nebula-release-plugin), and borrows a couple of lines from [Semver Bash Tool](https://github.com/fsaintjacques/semver-tool) (mostly the version comparison and the semantic version regex).*
 
@@ -16,7 +16,7 @@ Portability, mostly. You can use the script in any project that uses Git as a ve
 
 ## Why not use the Nebula-release plugin?
 
-Nebula Release is for releasing and publishing components and tries to automate the whole process from tagging to publishing. Th goal of the `semtag` script is to only tag release versions, leaving the release process up to the developer.
+Nebula Release is for releasing and publishing components and tries to automate the whole process from tagging to publishing. The goal of the `semtag` script is to only tag release versions, leaving the release process up to the developer.
 
 Plus, the `semtag` sctipt doesn't depend on the build system (so no need to use Gradle), so it can be used in any project.
 
@@ -38,7 +38,7 @@ Info commands:
 
 * `getfinal` Returns the current final version.
 * `getlast` Returns the last tagged version, it can be the final version or a non-final version.
-* `getcurrent` Returns the current version, it can be the tagged final version or a tagged non-final version. If there are unstaged or uncommitted changes, they will be included in the version, following this format: `<major>.<minor>.<patch>-dev.#+<branch>.<hash>`. Where `#` is the number of commits since the last final release, `branch` will be the current branch if we are not in `master` and `hash` is the git hash of the current commit.
+* `getcurrent` Returns the current version, it can be the tagged final version or a tagged non-final version. If there are unstaged or uncommitted changes, they will be included in the version, following this format: `<major>.<minor>.<patch>-dev.#+<branch>.<hash>`. Where `#` is the number of commits since the last final release, `branch` will be the current branch if we are not in the default branch (`master`, `main`, or other) and `hash` is the git hash of the current commit.
 * `get` Returns both last tagged version and current final version.
 
 Versioning commands:
@@ -140,3 +140,23 @@ Now the patch has been bumped, since a beta version is considered to be lower th
 ### Forcing a tag
 
 Semtag doesn't tag if there are no new commits since the last version, or if there are unstaged changes. To force to tag, use the `-f` flag, then it will bump no matter if there are unstaged changes or no new commits.
+
+### Version prefix
+
+By default, semtag prefixes new versions with `v`. Use the `-p` (plain) flag which to create new versions with no `v` prefix.
+
+License
+=======
+    Copyright 2020 Nico Hormazábal
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
